@@ -31,20 +31,27 @@ This fork publishes no builds and no hosted version: you build both from your ow
 game. For prebuilt Mac apps use [upstream's releases](https://github.com/iagodemacedo/OpenPopTB-MacOS/releases).
 
 ## Quick start (browser)
-1. Build the native version first (below): it also generates `gen/`, the C code recompiled from your
-   copy, which the browser build uses too.
-2. Install the [Emscripten SDK](https://emscripten.org/docs/getting_started/downloads.html) (it needs
-   Python 3.10+; on macOS `brew install python@3.13` and `export EMSDK_PYTHON=/opt/homebrew/bin/python3.13`).
-3. Build and serve:
-   ```sh
-   EMSDK=/path/to/emsdk tools/build_wasm.sh --web     # build-web/: 11 MB .wasm + .js
-   python3 tools/serve_web.py                         # local server (localhost only)
-   ```
-4. Open http://localhost:8123/ in Chrome and choose your game folder (the one with `popTB.exe`).
-   The files are read into the tab, not uploaded anywhere. Sound starts with that click.
+You need: macOS with the Xcode command line tools, `brew install cmake ninja python@3.13`, the
+[Emscripten SDK](https://emscripten.org/docs/getting_started/downloads.html) cloned next to this repo
+(`../emsdk`, or set `EMSDK=/path/to/emsdk`), Chrome, and the game files from your GOG copy (see below).
 
-For development, `python3 tools/serve_web.py --game /path/to/game` and http://localhost:8123/?dev
-skips the folder picker. More options: [docs/DEBUGGING.md](docs/DEBUGGING.md#browser).
+```sh
+./play.sh --game "/path/to/Populous The Beginning"   # first time: remembers the folder
+./play.sh                                            # after that
+```
+This recompiles your copy into `gen/` (first time only), builds the browser version into `build-web/`
+(incremental), starts a local server (localhost only) and opens http://localhost:8123/?dev in Chrome.
+Sound starts with your first click or key press. If a server is already running on that port, it
+just rebuilds and opens the page.
+
+Other uses:
+```sh
+./play.sh --no-build          # just serve and open
+./play.sh native              # native macOS reference build (build/), runs it directly
+./play.sh native -- --script "3000:key:Escape"   # extra game arguments after --
+```
+Without the dev server's `?dev`, the page asks you to choose the game folder instead (files are read
+into the tab, not uploaded). More options: [docs/DEBUGGING.md](docs/DEBUGGING.md#browser).
 
 ## Quick start (native reference build)
 The native macOS build is the reference for debugging and comparison.
@@ -128,7 +135,8 @@ internals so far: [docs/FINDINGS.md](docs/FINDINGS.md).
 ## Repository layout
 | Path | What |
 |---|---|
-| `build.sh` | One-shot build from your game folder or GOG installer |
+| `play.sh` | Build and run in one command: browser (default) or `native` |
+| `build.sh` | One-shot native build into `dist/*.app`, from your game folder or GOG installer |
 | `recomp/` | The static recompiler (Python): `image.py` code discovery, `gen.py` x86→C, `fuzz.py` differential fuzzer |
 | `runtime/` | The C runtime: CPU helpers, memory, threads, Win32/DirectX reimplementation on SDL3; `prepare.c` is the prebuilt app's first-launch recompilation. Browser and headless: `plat_headless.c` (no window; canvas and input with `POPTB_WEB`), `audio_web.c` |
 | `tools/` | Debugging tools: run with scripted input and screenshots, crash symbolication, replay, disassembly. Browser: `build_wasm.sh`, `serve_web.py`, `run_wasm.sh` (Node.js) |

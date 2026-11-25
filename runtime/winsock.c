@@ -233,7 +233,11 @@ static ssize_t send_broadcast(int fd, const void *buf, size_t n, int flags, uint
     }
     freeifaddrs(ifs);
     if (!any) {   // no broadcast interface: at least reach local instances
-        struct sockaddr_in d = {sizeof d, AF_INET, port, {htonl(INADDR_LOOPBACK)}, {0}};
+        struct sockaddr_in d = {0};
+#ifdef __APPLE__
+        d.sin_len = sizeof d;
+#endif
+        d.sin_family = AF_INET; d.sin_port = port; d.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
         best = sendto(fd, buf, n, flags, (struct sockaddr *)&d, sizeof d);
     }
     return best;

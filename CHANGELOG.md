@@ -30,6 +30,11 @@ versions follow [Semantic Versioning](https://semver.org/).
   screenshots) and `POPTB_GUEST_WINDOW` (512 MB guest memory, the WebAssembly layout).
 - Runtime portability: monotonic clock instead of `mach_absolute_time`, macOS-only code behind
   `#ifdef`, smaller thread stacks on WebAssembly, clean exit from any thread (`rt_exit`).
+- `./play.sh`: build and run in one command. Recompiles `gen/` if missing, builds the browser
+  version, serves it and opens Chrome; `./play.sh native` does the same for the native build. It
+  remembers the game folder (`.poptb-game`) and finds emsdk and a recent Python by itself.
+- Fixed: the loopback fallback address for LAN broadcasts was built wrong on non-Apple platforms
+  (WebAssembly).
 
 ### Changed (upstream)
 ### Changed

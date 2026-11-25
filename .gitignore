@@ -30,3 +30,6 @@ __pycache__/
 
 # local writing, never published
 post/
+
+# local settings
+.poptb-game

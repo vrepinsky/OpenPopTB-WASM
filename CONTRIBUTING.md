@@ -30,6 +30,7 @@ If you change `recomp/`, regenerate `gen/` (see README "How it works" and `build
 Browser and WebAssembly (needs the [Emscripten SDK](https://emscripten.org); emsdk needs Python 3.10+,
 e.g. `EMSDK_PYTHON=/opt/homebrew/bin/python3.13`):
 ```sh
+./play.sh                                         # all in one: gen/, build-web/, serve, open
 EMSDK=/path/to/emsdk tools/build_wasm.sh --web    # browser build (Release) -> build-web/
 python3 tools/serve_web.py --game /path/to/game   # http://localhost:8123/?dev
 EMSDK=/path/to/emsdk tools/build_wasm.sh          # headless under Node.js -> build-wasm/
