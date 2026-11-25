@@ -7,7 +7,6 @@
 // otherwise, so DirectSound's play cursor (which paces the FMVs) still advances.
 #include "rt.h"
 #include "input.h"
-#include "gpu.h"
 #include <SDL3/SDL.h>
 #ifdef POPTB_WEB
 #include <emscripten/emscripten.h>
@@ -271,7 +270,7 @@ void plat_init(void) {
     if (!getenv("SDL_AUDIO_DRIVER")) SDL_SetHint(SDL_HINT_AUDIO_DRIVER, "dummy");
     if (!SDL_Init(SDL_INIT_AUDIO)) WARN("SDL audio init: %s", SDL_GetError());
     g_start_ms = now_ms();
-    // the cursor variable's address is specific to popTB.exe (GOG v1.01, hash checked by build.sh)
+    // the cursor variable's address is specific to popTB.exe (GOG v1.01, hash checked by play.sh)
     extern const char *g_exe_name;
     game_cursor_ok = !strcasecmp(g_exe_name, "popTB.exe") && !getenv("POPTB_NO_GAME_CURSOR");
 #ifdef POPTB_WEB
@@ -303,7 +302,6 @@ void plat_pump(void) {
 }
 void plat_quit(void) { SDL_Quit(); }
 
-SDL_GPUDevice *plat_gpu_device(int *window_pixel_h) { (void)window_pixel_h; return NULL; }
 
 static void write_bmp(const char *path, const uint32_t *px, int w, int h) {
     FILE *f = fopen(path, "wb");
@@ -379,8 +377,4 @@ void plat_present(const uint8_t *pix, int w, int h, int pitch, const uint32_t *p
         else for (int x = 0; x < w; x++) d[x] = rgb565_to_xrgb((uint32_t)(s[2 * x] | s[2 * x + 1] << 8));
     }
     finish_frame(w, h);
-}
-void plat_present_hybrid(const uint16_t *pix, int w, int h, int pitch, const uint8_t *mask) {
-    (void)pix; (void)w; (void)h; (void)pitch; (void)mask;
-    rt_fatal("the Direct3D build needs a window (not supported by the headless platform)");
 }

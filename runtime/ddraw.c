@@ -13,7 +13,7 @@ static uint32_t display_pal;
 
 static void present_surf(Surf *s) {
     if (!s) return;
-    if (s->bpp == 16) { primary = s; if (!d3d_present(s)) plat_present(PTR(s->mem), s->w, s->h, s->pitch, NULL); return; }
+    if (s->bpp == 16) { primary = s; plat_present(PTR(s->mem), s->w, s->h, s->pitch, NULL); return; }
     if (s->bpp != 8) return;
     primary = s;
     if (s->pal) display_pal = s->pal;
@@ -70,7 +70,6 @@ COMFN(dd_QueryInterface, 2) {
         wr32(out, o);
         return 0;
     }
-    if (d1 == 0x6AAE1EC1) { wr32(out, d3d_create()); return 0; }   // IDirect3D2
     WARN("IDirectDraw::QueryInterface unknown iid %08x", d1);
     wr32(out, 0);
     return 0x80004002;
@@ -187,7 +186,7 @@ COMFN(dd_GetDeviceIdentifier, 2) {   // DDDEVICEIDENTIFIER: a generic NVIDIA RIV
 static Surf *S(uint32_t o) { return com_native(o); }
 
 COMFN(s_QueryInterface, 2) {
-    if (rd32(ARG(1)) == 0x93281502) { wr32(ARG(2), d3d_texture_of(THIS)); return 0; }   // IDirect3DTexture2
+    if (rd32(ARG(1)) == 0x93281502) { wr32(ARG(2), 0); return 0x80004002; }   // IDirect3DTexture2: no Direct3D
     wr32(ARG(2), THIS); wr32(THIS + 4, rd32(THIS + 4) + 1); return 0;
 }
 COMFN(s_GetAttachedSurface, 2) {

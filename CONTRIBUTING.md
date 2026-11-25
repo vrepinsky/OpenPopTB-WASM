@@ -1,8 +1,8 @@
 # Contributing
 
 This fork is an attempt at a browser (WebAssembly) port of OpenPopTB-MacOS. The plan and backlog
-are in [docs/wasm/PLAN.md](docs/wasm/PLAN.md). Keep the native macOS build working: it is the
-reference for every change. This fork publishes no releases.
+are in [docs/wasm/PLAN.md](docs/wasm/PLAN.md). Keep the native macOS dev build working: it is the
+reference for every change. This fork publishes no releases and has no app packaging (upstream has).
 
 ## Ground rules
 - **Never commit or attach game code or data.** That includes `gen/`, `gen_uw/`, build folders,
@@ -16,26 +16,21 @@ reference for every change. This fork publishes no releases.
 ## Setup
 ```sh
 xcode-select --install
-brew install cmake ninja sdl3 python
-./build.sh "/path/to/Populous The Beginning"      # first full build
+brew install cmake ninja sdl3 python@3.13
+git clone https://github.com/emscripten-core/emsdk ../emsdk && ../emsdk/emsdk install latest && ../emsdk/emsdk activate latest
+./play.sh --game "/path/to/Populous The Beginning"   # gen/, build-web/, serve, open Chrome
+./play.sh native                                     # native reference build (build/), runs it
 ```
-Day-to-day:
+The steps behind it, when you need them separately:
 ```sh
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo
-ninja -C build poptb poptbuw
-POPTB_GAME="/path/to/game" tools/run.sh 60        # run for 60 s
-```
-If you change `recomp/`, regenerate `gen/` (see README "How it works" and `build.sh`).
-
-Browser and WebAssembly (needs the [Emscripten SDK](https://emscripten.org); emsdk needs Python 3.10+,
-e.g. `EMSDK_PYTHON=/opt/homebrew/bin/python3.13`):
-```sh
-./play.sh                                         # all in one: gen/, build-web/, serve, open
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo && ninja -C build poptb
+POPTB_GAME="/path/to/game" tools/run.sh 60        # native, run for 60 s
 EMSDK=/path/to/emsdk tools/build_wasm.sh --web    # browser build (Release) -> build-web/
 python3 tools/serve_web.py --game /path/to/game   # http://localhost:8123/?dev
 EMSDK=/path/to/emsdk tools/build_wasm.sh          # headless under Node.js -> build-wasm/
 POPTB_GAME=/path/to/game tools/run_wasm.sh 60     # same flags as tools/run.sh
 ```
+If you change `recomp/`, delete `gen/` and run `./play.sh` again: it regenerates it.
 
 ## Where things live
 - New Win32 function → add `SHIM(Name, nargs)` in the matching `runtime/*.c` file.
@@ -45,7 +40,7 @@ POPTB_GAME=/path/to/game tools/run_wasm.sh 60     # same flags as tools/run.sh
 - Code discovery problems (`dispatch: unknown target`) → `recomp/image.py`.
 - Browser and headless platform (canvas, input, cursor sync) → `runtime/plat_headless.c` and
   `web/main.js`; browser audio → `runtime/audio_web.c` and `web/audio-worklet.js`. Native-only
-  code (`plat.c`, `prepare.c`, macOS APIs) stays behind `#ifndef __EMSCRIPTEN__` or out of the web
+  code (`plat.c`, macOS APIs) stays behind `#ifndef __EMSCRIPTEN__` or out of the web
   build (see `CMakeLists.txt`).
 
 ## Testing a change
@@ -54,8 +49,7 @@ POPTB_GAME=/path/to/game tools/run_wasm.sh 60     # same flags as tools/run.sh
 2. Intro movies, main menu, start the tutorial, run the Rolling Demo a few minutes:
    `tools/run.sh 180 --shot-dir /tmp/shots --shot-every 300 --script "17000:click:320,302"`.
 3. If you touched audio: `POPTB_WAV=/tmp/out.raw tools/run.sh 40` and check the level is not silent.
-4. Undiscovered Worlds: `POPTB_APP=PopulousUW tools/run.sh ...`.
-5. If you touched shared runtime code: the headless and WebAssembly builds still build
+4. If you touched shared runtime code: the headless and WebAssembly builds still build
    (`-DPOPTB_HEADLESS=ON`, `tools/build_wasm.sh`, `tools/build_wasm.sh --web`), and the browser
    build reaches the menu (`?dev`; headless Chrome works, see DEBUGGING.md "Browser").
 See [docs/DEBUGGING.md](docs/DEBUGGING.md) for crash symbolication, tracing and replay tools.

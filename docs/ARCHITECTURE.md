@@ -95,35 +95,13 @@ The game renders 8-bit frames itself (software renderer) into a DirectDraw back 
 `ddraw.c` converts with the current display palette and uploads to an SDL texture (nearest-neighbour
 scaling, letterboxed). FMVs switch the display to 640x480x16 (RGB565).
 
-## 3. Two ways to build: from source and the prebuilt app
-> In this fork only the from-source build is used. The prebuilt-app packaging (`tools/package_release.sh`,
-> CI, signing) was removed; `runtime/prepare.c` and the `POPTB_PREBUILT` option remain in the code.
-> The WebAssembly build is a third way: see section 5.
-
-- **From source** (`build.sh`): `gen.py` writes `gen*/*.c` and CMake links them into the app together
-  with the runtime. `main.c` points `fn_table`/`import_table` at the generated `gen_fn_table`/
-  `gen_import_table`.
-- **Prebuilt app** (`-DPOPTB_PREBUILT=ON`, `tools/package_release.sh`, CI on tags): the app holds only
-  the runtime, `recomp/gen.py` + `image.py` with capstone 5.0.7 and pefile vendored next to them, the
-  Ghidra address list (`seeds/popTB.exe.tsv`) and the headers the generated code includes
-  (`cpu.h`, `rt_ops.h`, `table.h`), plus innoextract and its libraries. On first launch
-  `runtime/prepare.c`:
-  1. finds the game (saved path, `--data`, or asks: game folder, or GOG installer unpacked with the
-     bundled innoextract into `~/Library/Application Support/OpenPopTB/Game`);
-  2. hashes `<exe>`, `QMixer.dll`, `WEANETR.dll`; the cache key is those hashes plus
-     `POPTB_GEN_ABI` (app version + hashes of `gen.py`, `image.py`, `cpu.h`, `rt_ops.h`, `table.h`);
-  3. if `cache/<exe>-<key>/game.bundle` is missing: checks for the Command Line Tools (offers
-     `xcode-select --install`), copies the recompiler out of the app without the quarantine flag
-     (Gatekeeper refuses quarantined libraries even after the app was approved), runs
-     `/usr/bin/python3 -I gen.py`, compiles each file with `xcrun clang` (same flags as the CMake
-     build, one job per performance core) and links `clang -bundle -bundle_loader <app binary>`, so
-     the generated code's references to the runtime (`MEM`, `dispatch`, ...) resolve against the app;
-  4. `dlopen`s the bundle (the bundle is only ad-hoc signed, so the hardened-runtime app carries the
-     `com.apple.security.cs.disable-library-validation` entitlement) and reads the tables with
-     `dlsym`. Bundles for other keys are deleted.
-
-  About a minute the first time (40 s measured on a 15-core M-series Mac), about 4 s afterwards.
-  The generated code was verified byte-identical to the from-source output (same capstone version).
+## 3. Build
+`recomp/gen.py` writes `gen/*.c` from the player's `popTB.exe` (plus `QMixer.dll`, `WEANETR.dll`), and
+CMake compiles them together with the runtime: natively into `build/PopulousTB.app` (the reference,
+`./play.sh native`), or with Emscripten into `build-web/` (section 5). `main.c` points
+`fn_table`/`import_table` at the generated `gen_fn_table`/`gen_import_table`. `./play.sh` runs all of
+it. The upstream prebuilt-app packaging (first-launch recompile, `prepare.c`) and Direct3D build are
+not part of this fork.
 
 ## 4. Verification
 - `tools/fuzz.sh`: for each distinct instruction form (mnemonic + operand kinds, plus adjacent

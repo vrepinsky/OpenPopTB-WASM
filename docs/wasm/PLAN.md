@@ -145,6 +145,13 @@ sound.
 - **Generated code** stays at `-O1` as upstream does; whether `-O2` is faster in the browser is
   untested.
 
+**One command, and upstream-only parts removed (2026-11-25).** `./play.sh` builds and runs: it
+generates `gen/` if missing, builds `build-web/`, serves it and opens Chrome (`./play.sh native` for
+the reference build). Removed from the fork: the Direct3D build (`d3d.c`, `gpu.c`, its function list
+and notes), the native app packaging and first-launch recompile (`build.sh`, `package.sh`,
+`prepare.c`, `POPTB_PREBUILT`), and the upstream roadmap, multiplayer and file format docs. The native dev build
+stays as the reference; verified unchanged on a scripted run into the tutorial.
+
 Still loaded on every visit: the ~385 MB of game files (picker or dev server). Next options: keep them
 in OPFS so the folder is chosen once; save export/import; a smaller release build. B-22 (virtual clock) when exact screenshot
 comparison is needed.
@@ -194,7 +201,7 @@ threads and game logic in Wasm cheaply. Only then build the browser platform lay
 
 **Non-goals (for now)**
 - Multiplayer (`winsock.c`, `WEANETR.dll`). Upstream doesn't load WEANETR unless `POPTB_NET=1`.
-- The Direct3D build (`D3DPopTB.exe`, `d3d.c`/`gpu.c` on SDL_GPU).
+- The Direct3D build (`D3DPopTB.exe`, `d3d.c`/`gpu.c` on SDL_GPU). Removed from this fork (2026-11-25).
 - Undiscovered Worlds (`popTBUW.exe`). Should work later with the same pipeline.
 - Mobile, touch, Safari/Firefox, public hosting, in-browser recompilation, mods, HD assets.
 
@@ -218,11 +225,11 @@ runtime/*.c                               (C11: CPU helpers, memory, Win32/Direc
 Populous TB.app (arm64)
 ```
 
-- `build.sh` runs the whole pipeline. Generating the C takes ~15 s and the native build ~10 s
-  on this Mac [V].
+- `build.sh` ran the whole pipeline (now `./play.sh`). Generating the C takes ~15 s and the native
+  build ~10 s on this Mac [V].
 - The release app ships only the runtime and recompiler. `runtime/prepare.c` recompiles the
   player's copy on first launch (Python + `xcrun clang`), builds a `.bundle` and `dlopen`s it.
-  **This path is macOS-only and irrelevant to the web port.**
+  **This path is macOS-only and irrelevant to the web port** (removed 2026-11-25).
 
 ### 3.2 Recompiler (`recomp/`) [V]
 - `image.py`: maps PE files at their preferred base and discovers code by recursive descent.
@@ -276,7 +283,7 @@ Populous TB.app (arm64)
 | `dinput.c` | DirectInput keyboard/mouse, buffered data, event notification | compiles |
 | `dsound.c` | DirectSound software mixer → SDL3 audio stream callback, waveOut | compiles (SDL3 port) |
 | `plat.c` | SDL3 window, presentation, events → Win32/DInput, scripted input, screenshots | **fails**: `pthread_main_np` |
-| `d3d.c`, `gpu.c` | Direct3D 5 on SDL_GPU | compiles; out of scope |
+| `d3d.c`, `gpu.c` | Direct3D 5 on SDL_GPU | compiles; out of scope (removed 2026-11-25) |
 | `winsock.c` | BSD sockets | **fails**: `sin_len`, `SO_NOSIGPIPE`; out of scope (stub) |
 | `snap.c` | memory snapshots and traces for replay tools | compiles |
 | `prepare.c` | macOS first-launch recompile (CommonCrypto, `dlopen`, `xcrun`) | **fails**; exclude |
@@ -705,15 +712,14 @@ Status:
 Notes:
 - Pressing Escape too many times opens the Quit dialog.
 - Menu coordinates are in `docs/DEBUGGING.md`.
-- `build.sh --installer …` does steps 1–3 in one go, but it extracts into `game/` *inside* the
-  repo (gitignored).
+- `./play.sh native` now does steps 1–3 in one go (`build.sh` was removed 2026-11-25).
 
 ---
 
 ## 13. References
 
 **Repository (this fork of OpenPopTB-MacOS, MIT)**
-- `docs/ARCHITECTURE.md`, `docs/FINDINGS.md`, `docs/DEBUGGING.md`, `docs/ROADMAP.md`,
+- `docs/ARCHITECTURE.md`, `docs/FINDINGS.md`, `docs/DEBUGGING.md`,
   `CONTRIBUTING.md`
 - Recompiler: `recomp/gen.py` (codegen; `gen_func`, `_gen`, `main` writes `gen/`),
   `recomp/image.py` (discovery), `recomp/fuzz.py`

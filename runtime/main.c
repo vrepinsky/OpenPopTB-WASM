@@ -38,18 +38,6 @@ const FnEntry *fn_table;
 int fn_table_len;
 const ImportEntry *import_table;
 int import_table_len;
-int prep_choose_game(const char *exe, char *root, size_t n);
-int prep_from_installer(const char *exe, const char *setup, char *root, size_t n);
-int prep_load_game(const char *root, const char *exe);
-#ifdef __EMSCRIPTEN__
-// runtime/prepare.c is macOS-only (folder dialog, installer unpacking, first-launch recompile)
-int prep_choose_game(const char *exe, char *root, size_t n) { (void)exe; (void)root; (void)n; return 0; }
-int prep_from_installer(const char *exe, const char *setup, char *root, size_t n) {
-    (void)exe; (void)setup; (void)root; (void)n;
-    fprintf(stderr, "--installer is not supported in this build\n");
-    return 0;
-}
-#endif
 
 static uint8_t *read_file(const char *p, size_t *n) {
     FILE *f = fopen(p, "rb");
@@ -167,8 +155,7 @@ static void config_path(char *out, size_t n) {
     const char *home = getenv("HOME");
     snprintf(out, n, "%s/Library/Application Support/OpenPopTB", home ? home : ".");
 }
-// order: --data/POPTB_DATA, saved path, folder next to the .app, current directory, ask the user
-// (folder or GOG installer)
+// order: --data/POPTB_DATA, saved path, folder next to the .app, current directory
 static int find_data_dir(const char *given) {
     char cand[1100] = "";
     char cfg[1024]; config_path(cfg, sizeof cfg);
@@ -192,9 +179,7 @@ static int find_data_dir(const char *given) {
     }
 #endif
     if (has_game(".")) { realpath(".", g_root); goto ok; }
-    // ask: game folder or GOG installer (runtime/prepare.c)
-    if (!prep_choose_game(POPTB_EXE, cand, sizeof cand)) return 0;
-    realpath(cand, g_root);
+    return 0;
 ok:
     for (char *c = cfg + 1; *c; c++) if (*c == '/') { *c = 0; mkdir(cfg, 0755); *c = '/'; }   // mkdir -p
     mkdir(cfg, 0755);
@@ -204,10 +189,9 @@ ok:
 }
 
 int main(int argc, char **argv) {
-    const char *data = NULL, *script_spec = NULL, *installer = NULL;
+    const char *data = NULL, *script_spec = NULL;
     for (int i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "--data") && i + 1 < argc) data = argv[++i];
-        else if (!strcmp(argv[i], "--installer") && i + 1 < argc) installer = argv[++i];
         else if (!strcmp(argv[i], "-v")) rt_verbose = 1;
         else if (!strcmp(argv[i], "-vv")) rt_verbose = 2;
         else if (!strcmp(argv[i], "--shot") && i + 1 < argc) g_shot_path = argv[++i];
@@ -218,23 +202,12 @@ int main(int argc, char **argv) {
         else { strncat(g_cmdline, " ", sizeof g_cmdline - strlen(g_cmdline) - 1); strncat(g_cmdline, argv[i], sizeof g_cmdline - strlen(g_cmdline) - 1); }
     }
     if (!data) data = getenv("POPTB_DATA");
-    // unpacks the GOG installer into Application Support and uses that copy from then on
-    static char unpacked[1100];
-    if (installer && !data) {
-        if (!prep_from_installer(POPTB_EXE, installer, unpacked, sizeof unpacked)) return 1;
-        data = unpacked;
-    }
     if (!find_data_dir(data)) {
         fprintf(stderr, "popTB.exe not found (use --data <game folder>)\n");
         return 1;
     }
-#ifdef POPTB_PREBUILT
-    // prebuilt app: the game code is recompiled from the player's copy on first launch, then cached
-    if (!prep_load_game(g_root, POPTB_EXE)) return 1;
-#else
     fn_table = gen_fn_table; fn_table_len = gen_fn_table_len;
     import_table = gen_import_table; import_table_len = gen_import_table_len;
-#endif
     char exe[1100]; snprintf(exe, sizeof exe, "%s/%s", g_root, POPTB_EXE);
     struct stat st;
     chdir(g_root);
@@ -256,7 +229,7 @@ int main(int argc, char **argv) {
         if (getenv("POPTB_QMIX_DEBUG")) wr32(0x1802dfd4, (uint32_t)atoi(getenv("POPTB_QMIX_DEBUG")));
     }
     snprintf(dll, sizeof dll, "%s/WEANETR.dll", g_root);
-    // multiplayer is a work in progress (docs/multiplayer.md): only loads weanetr with POPTB_NET=1
+    // multiplayer is a work in progress (not ported to the browser): only loads weanetr with POPTB_NET=1
     if (stat(dll, &st2) == 0 && getenv("POPTB_NET")) load_pe(dll);
     bind_imports();
     gil_lock();

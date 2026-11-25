@@ -20,9 +20,6 @@ endif()
 
 # Recompiled port: x86 code translated to C (gen*/) + Win32/DirectX runtime on top of SDL3.
 # One target per game executable: Populous: The Beginning and the Undiscovered Worlds expansion.
-# POPTB_PREBUILT: the downloadable app. It contains only the runtime; the game code is generated and
-# compiled on the player's Mac on first launch (runtime/prepare.c) and loaded as a bundle.
-option(POPTB_PREBUILT "Build the runtime-only app that recompiles the player's copy on first launch" OFF)
 option(POPTB_GEN_DEBUG "Build the generated code without optimization (exact lines in the debugger)" OFF)
 # Compact 512 MB guest address space, as used by the WebAssembly build (runtime/rt.h). Natively, any
 # guest access outside the window faults, which makes this the bounds check for the web layout.
@@ -35,28 +32,10 @@ if(POPTB_HEADLESS)
 else()
   list(REMOVE_ITEM RT_SRC ${CMAKE_CURRENT_SOURCE_DIR}/runtime/plat_headless.c)
 endif()
-if(EMSCRIPTEN)
-  # macOS-only: folder dialog, installer unpacking, first-launch recompile
-  list(REMOVE_ITEM RT_SRC ${CMAKE_CURRENT_SOURCE_DIR}/runtime/prepare.c)
-endif()
-# Cached game bundles are rebuilt when anything that shapes the generated code or its ABI changes
-set(POPTB_GEN_ABI "${PROJECT_VERSION}")
-# (prepare.c: compile flags; functions.tsv: seeds)
-foreach(f recomp/gen.py recomp/image.py re/export/functions.tsv runtime/cpu.h runtime/rt_ops.h
-          runtime/table.h runtime/prepare.c)
-  set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${f})
-  file(SHA256 ${CMAKE_CURRENT_SOURCE_DIR}/${f} h)
-  string(SUBSTRING ${h} 0 8 h)
-  string(APPEND POPTB_GEN_ABI "-${h}")
-endforeach()
 function(poptb_target name gendir exe outname bundle)
-  if(POPTB_PREBUILT)
-    set(GEN_SRC "")
-  else()
-    file(GLOB GEN_SRC CONFIGURE_DEPENDS ${gendir}/*.c)
-    if(NOT GEN_SRC)
-      return()
-    endif()
+  file(GLOB GEN_SRC CONFIGURE_DEPENDS ${gendir}/*.c)
+  if(NOT GEN_SRC)
+    return()
   endif()
   add_executable(${name} MACOSX_BUNDLE ${RT_SRC} ${GEN_SRC})
   target_include_directories(${name} PRIVATE runtime ${gendir})
@@ -85,9 +64,6 @@ function(poptb_target name gendir exe outname bundle)
   if(POPTB_GUEST_WINDOW)
     target_compile_definitions(${name} PRIVATE POPTB_GUEST_WINDOW)
   endif()
-  if(POPTB_PREBUILT)
-    target_compile_definitions(${name} PRIVATE POPTB_PREBUILT POPTB_GEN_ABI="${POPTB_GEN_ABI}")
-  endif()
   target_compile_options(${name} PRIVATE -fno-strict-aliasing -fwrapv -Wno-parentheses -Wno-unused-value)
   if(POPTB_GEN_DEBUG)
     set_source_files_properties(${GEN_SRC} TARGET_DIRECTORY ${name} PROPERTIES COMPILE_OPTIONS "-O0;-g;-w")
@@ -102,5 +78,4 @@ function(poptb_target name gendir exe outname bundle)
 endfunction()
 poptb_target(poptb gen popTB.exe PopulousTB "Populous TB")
 poptb_target(poptbuw gen_uw popTBUW.exe PopulousUW "Populous UW")
-poptb_target(poptbd3d gen_d3d D3DPopTB.exe PopulousTBD3D "Populous TB (Direct3D)")
 

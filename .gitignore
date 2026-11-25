@@ -1,9 +1,7 @@
 # Derived from the game executables or from builds: never commit
 gen/
 gen_uw/
-gen_d3d/
 build*/
-dist/
 game/
 out/
 re/bin/
@@ -11,9 +9,6 @@ re/proj/
 re/snap/
 re/export/decomp.c
 re/export/strings.tsv
-re/export_d3d/decomp.c
-re/export_d3d/strings.tsv
-re/export_d3d/headless.log
 re/rea/
 re/analyze*
 re/export.log

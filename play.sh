@@ -36,6 +36,15 @@ fi
 GAME="$(cd "$GAME" && pwd)"
 echo "$GAME" > "$P/.poptb-game"
 echo "== game: $GAME"
+# known-good files (GOG release, v1.01): the runtime has a few address-specific tweaks
+check() {
+  [ -f "$GAME/$1" ] || return 0
+  h=$(shasum -a 256 "$GAME/$1" | cut -d' ' -f1)
+  [ "$h" = "$2" ] || echo "warning: $1 differs from the tested GOG build (sha256 $h); it may not work" >&2
+}
+check popTB.exe   a46e7c6fa04e13f6cd5accebe32bb5f543f1cd0808bb96b0040f59763251109e
+check QMixer.dll  460292fe61a75996e8035f8a65a765733738293d0d391336be292aa74c128698
+check WEANETR.dll 44f5ea804323b607c68739d90df3e9516390f4045c2779350372566c2a806418
 
 # --- gen/: the C recompiled from popTB.exe (+ QMixer.dll, WEANETR.dll)
 if [ $BUILD = 1 ] && ! ls "$P"/gen/*.c >/dev/null 2>&1; then

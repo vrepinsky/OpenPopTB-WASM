@@ -84,14 +84,6 @@ few times early in the script to skip them. `click`/`rclick` hold the button for
 Useful menu coordinates (640x480, TB): New Game (320,152), Multiplayer (320,242),
 Options (320,272), Rolling Demo (320,302). UW: Single Level (320,152), Start (320,438).
 
-## Direct3D build
-```sh
-POPTB_APP=PopulousTBD3D tools/run.sh 30           # the D3D build (D3DPopTB.exe)
-tools/d3d_compare.sh OUT                           # same scripted path in both builds -> OUT/cmp.png
-POPTB_D3D_SCALE=1 ...                              # internal render scale 1-4 (default: window height / 480)
-POPTB_SHOT_WINDOW=1 ...                            # screenshots at window resolution, not game resolution
-POPTB_D3D_DUMP=draws.txt POPTB_D3D_DUMP_MS=29000 ...   # state + vertices of every draw in one frame
-```
 `SDL_AUDIO_DRIVER=dummy` skips CoreAudio for runs that only need pictures (it also gets past a
 machine whose CoreAudio device open hangs).
 

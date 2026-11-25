@@ -1,15 +1,12 @@
 // SDL3 platform: window, frame presentation, events -> Win32 messages and DirectInput.
 #include "rt.h"
 #include "input.h"
-#include "gpu.h"
 #include <SDL3/SDL.h>
 #include <pthread.h>
 
 static SDL_Window *win;
 static SDL_Renderer *ren;
 static SDL_Texture *tex;
-static SDL_Texture *overlay, *hires;   // hybrid present: CPU pixels over the GPU scene image
-static SDL_GPUTexture *hires_src;
 static int tex_w = 640, tex_h = 480;
 static uint32_t *rgba;
 int g_mouse_x = 320, g_mouse_y = 240;
@@ -107,16 +104,10 @@ void plat_init(void) {
     g_start_ms = now_ms();
 }
 
-SDL_GPUDevice *plat_gpu_device(int *window_pixel_h) {
-    if (window_pixel_h) SDL_GetWindowSizeInPixels(win, NULL, window_pixel_h);
-    return SDL_GetGPURendererDevice(ren);
-}
-
 static void set_size(int w, int h) {
     if (w == tex_w && h == tex_h && rgba) return;
     if (tex) SDL_DestroyTexture(tex);
-    if (overlay) SDL_DestroyTexture(overlay);
-    tex = overlay = NULL;
+    tex = NULL;
     SDL_SetRenderLogicalPresentation(ren, w, h, SDL_LOGICAL_PRESENTATION_LETTERBOX);
     free(rgba); rgba = malloc((size_t)w * h * 4);
     tex_w = w; tex_h = h;
@@ -167,40 +158,6 @@ void plat_present(const uint8_t *pix, int w, int h, int pitch, const uint32_t *p
     SDL_Texture *t = stream_tex(&tex, SDL_PIXELFORMAT_XRGB8888, SDL_BLENDMODE_NONE);
     SDL_UpdateTexture(t, NULL, rgba, w * 4);
     SDL_RenderClear(ren);
-    SDL_RenderTexture(ren, t, NULL, NULL);
-    finish_frame(w, h);
-}
-
-void plat_present_hybrid(const uint16_t *pix, int w, int h, int pitch, const uint8_t *mask) {
-    set_size(w, h);
-    int iw, ih;
-    SDL_GPUTexture *img = gpu_image(&iw, &ih);
-    if (img != hires_src || (hires && (hires->w != iw || hires->h != ih))) {
-        if (hires) SDL_DestroyTexture(hires);
-        hires = NULL;
-        hires_src = img;
-        if (img) {
-            SDL_PropertiesID p = SDL_CreateProperties();
-            SDL_SetPointerProperty(p, SDL_PROP_TEXTURE_CREATE_GPU_TEXTURE_POINTER, img);
-            SDL_SetNumberProperty(p, SDL_PROP_TEXTURE_CREATE_FORMAT_NUMBER, SDL_PIXELFORMAT_ABGR8888);
-            SDL_SetNumberProperty(p, SDL_PROP_TEXTURE_CREATE_WIDTH_NUMBER, iw);
-            SDL_SetNumberProperty(p, SDL_PROP_TEXTURE_CREATE_HEIGHT_NUMBER, ih);
-            hires = SDL_CreateTextureWithProperties(ren, p);
-            SDL_DestroyProperties(p);
-            if (!hires) WARN("hybrid present: %s", SDL_GetError());
-            else { SDL_SetTextureScaleMode(hires, SDL_SCALEMODE_LINEAR); SDL_SetTextureBlendMode(hires, SDL_BLENDMODE_NONE); }
-        }
-    }
-    for (int y = 0; y < h; y++) {
-        const uint16_t *s = (const uint16_t *)((const uint8_t *)pix + (size_t)y * pitch);
-        const uint8_t *m = mask + (size_t)y * w;
-        uint32_t *d = rgba + (size_t)y * w;
-        for (int x = 0; x < w; x++) d[x] = rgb565_to_xrgb(s[x]) | (m[x] ? 0xff000000u : 0);
-    }
-    SDL_Texture *t = stream_tex(&overlay, SDL_PIXELFORMAT_ARGB8888, SDL_BLENDMODE_BLEND);
-    SDL_UpdateTexture(t, NULL, rgba, w * 4);
-    SDL_RenderClear(ren);
-    if (hires) SDL_RenderTexture(ren, hires, NULL, NULL);
     SDL_RenderTexture(ren, t, NULL, NULL);
     finish_frame(w, h);
 }

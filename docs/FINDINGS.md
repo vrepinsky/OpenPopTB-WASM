@@ -80,7 +80,7 @@ The game measures the CPU with `rdtsc` and picks default detail levels from it. 
 - MMX code path exists; disabled by reporting no MMX in `cpuid`.
 
 ## Networking (weanetr.dll, "MLDPlay")
-See [MULTIPLAYER.md](MULTIPLAYER.md). Key facts:
+Multiplayer is not ported to the browser; the native runtime has the upstream LAN support. Key facts:
 - C++ class `MLDPlay`, thiscall exports. Services: "Winsock TCP/IP Internet Connection" (raw
   Winsock, UDP port 7575 by default), "Head-to-head modem", IPX via DirectPlay (unavailable).
 - `AreWeLobbied` returns `0x20` when not launched from a DirectPlay lobby; any other value makes

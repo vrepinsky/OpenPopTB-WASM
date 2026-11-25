@@ -15,7 +15,6 @@ typedef struct Surf {
     uint32_t mem, caps;
     uint32_t pf_flags, mask[4];   // DDPIXELFORMAT flags and R, G, B, A masks
     uint32_t gen;                 // bumped whenever the pixels or palette may have changed
-    uint32_t tex_gen;             // gen of the copy uploaded to the GPU
     int primary;
     uint32_t back;      // attached back buffer surface
     uint32_t pal;
@@ -25,6 +24,3 @@ typedef struct Surf {
 
 void com_addref(CPU *R);
 void com_release(CPU *R);
-uint32_t d3d_create(void);
-uint32_t d3d_texture_of(uint32_t surf);
-int d3d_present(const Surf *s);   // shows a Direct3D frame; 0 if s is not one
