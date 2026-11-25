@@ -27,19 +27,36 @@ POPTB_GAME="/path/to/game" tools/run.sh 60        # run for 60 s
 ```
 If you change `recomp/`, regenerate `gen/` (see README "How it works" and `build.sh`).
 
+Browser and WebAssembly (needs the [Emscripten SDK](https://emscripten.org); emsdk needs Python 3.10+,
+e.g. `EMSDK_PYTHON=/opt/homebrew/bin/python3.13`):
+```sh
+EMSDK=/path/to/emsdk tools/build_wasm.sh --web    # browser build (Release) -> build-web/
+python3 tools/serve_web.py --game /path/to/game   # http://localhost:8123/?dev
+EMSDK=/path/to/emsdk tools/build_wasm.sh          # headless under Node.js -> build-wasm/
+POPTB_GAME=/path/to/game tools/run_wasm.sh 60     # same flags as tools/run.sh
+```
+
 ## Where things live
 - New Win32 function → add `SHIM(Name, nargs)` in the matching `runtime/*.c` file.
 - New COM method → the vtable tables at the bottom of `ddraw.c`, `dinput.c`, `dsound.c`.
 - Recompiler instruction semantics → `recomp/gen.py` (`_gen`, `fpu`). Run `tools/fuzz.sh` after
   touching it; it must stay at "only `pushfd` differs".
 - Code discovery problems (`dispatch: unknown target`) → `recomp/image.py`.
+- Browser and headless platform (canvas, input, cursor sync) → `runtime/plat_headless.c` and
+  `web/main.js`; browser audio → `runtime/audio_web.c` and `web/audio-worklet.js`. Native-only
+  code (`plat.c`, `prepare.c`, macOS APIs) stays behind `#ifndef __EMSCRIPTEN__` or out of the web
+  build (see `CMakeLists.txt`).
 
 ## Testing a change
-1. `tools/fuzz.sh` if you touched the recompiler.
+1. `tools/fuzz.sh` if you touched the recompiler (`FUZZ_WASM=1` also checks wasm32 gives the same
+   result).
 2. Intro movies, main menu, start the tutorial, run the Rolling Demo a few minutes:
    `tools/run.sh 180 --shot-dir /tmp/shots --shot-every 300 --script "17000:click:320,302"`.
 3. If you touched audio: `POPTB_WAV=/tmp/out.raw tools/run.sh 40` and check the level is not silent.
 4. Undiscovered Worlds: `POPTB_APP=PopulousUW tools/run.sh ...`.
+5. If you touched shared runtime code: the headless and WebAssembly builds still build
+   (`-DPOPTB_HEADLESS=ON`, `tools/build_wasm.sh`, `tools/build_wasm.sh --web`), and the browser
+   build reaches the menu (`?dev`; headless Chrome works, see DEBUGGING.md "Browser").
 See [docs/DEBUGGING.md](docs/DEBUGGING.md) for crash symbolication, tracing and replay tools.
 
 ## Pull requests

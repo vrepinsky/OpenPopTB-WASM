@@ -9,33 +9,45 @@ The plan is to compile that same generated C and runtime with [Emscripten](https
 and present the original software renderer in an HTML canvas, while keeping the native macOS build
 working as the reference implementation.
 
-> **Status: early.** The game runs **in Chrome** with keyboard and mouse, using the original software
-> renderer, and sound. Saves persist in the browser's storage. The game folder is still loaded on
-> each visit. It also runs headless under
-> Node.js. Plan and findings: [docs/wasm/PLAN.md](docs/wasm/PLAN.md),
-> [docs/wasm/DISCOVERY-NOTES.md](docs/wasm/DISCOVERY-NOTES.md).
->
-> ```sh
-> # after ./build.sh has generated gen/; needs the Emscripten SDK
-> EMSDK=/path/to/emsdk tools/build_wasm.sh --web
-> python3 tools/serve_web.py          # open http://localhost:8123/ in Chrome, choose your game folder
-> ```
+> **Status: early, but playable in Chrome.** The game runs in the browser with the original software
+> renderer, keyboard and mouse, and sound. Saves persist in the browser's storage. Tested so far: the
+> intro, menus, the tutorial and the Rolling Demo; longer campaign play is still to be tested. The
+> game folder is loaded again on each visit. Plan and progress: [docs/wasm/PLAN.md](docs/wasm/PLAN.md).
 
 > **You must own the game.** This repository contains **no game code and no game data**. The build
 > reads *your* copy of the game (the GOG release) and recompiles it locally. The output is derived
 > from your copy and must not be redistributed or hosted publicly. See [Legal](#legal).
 
-| | Native macOS build (inherited) | Browser build |
+| | Native macOS build (inherited) | Browser build (Chrome) |
 |---|---|---|
-| Single player | Fully playable (campaign, tutorial, Rolling Demo, Undiscovered Worlds) | Not yet |
-| Video | Original software renderer, 640x480 and 800x600 | Planned: same renderer in a canvas |
-| Audio | Sound effects, music and FMV audio | Planned |
+| Single player | Fully playable (campaign, tutorial, Rolling Demo, Undiscovered Worlds) | Playable; tutorial and Rolling Demo tested, longer campaign play not yet. The Undiscovered Worlds expansion isn't built for the browser yet |
+| Video | Original software renderer, 640x480 and 800x600 | Same renderer on a canvas, scaled to the window; Cmd+Enter for fullscreen |
+| Input | Keyboard, mouse, trackpad | Keyboard and mouse; the mouse is captured in fullscreen |
+| Audio | Sound effects, music and FMV audio | Same, through Web Audio |
+| Saves | In the game folder's `SAVE` directory | In the browser's storage (first run starts from the folder's saves) |
 | Multiplayer | Work in progress upstream ([docs/MULTIPLAYER.md](docs/MULTIPLAYER.md)) | Out of scope |
 
+This fork publishes no builds and no hosted version: you build both from your own copy of the
+game. For prebuilt Mac apps use [upstream's releases](https://github.com/iagodemacedo/OpenPopTB-MacOS/releases).
+
+## Quick start (browser)
+1. Build the native version first (below): it also generates `gen/`, the C code recompiled from your
+   copy, which the browser build uses too.
+2. Install the [Emscripten SDK](https://emscripten.org/docs/getting_started/downloads.html) (it needs
+   Python 3.10+; on macOS `brew install python@3.13` and `export EMSDK_PYTHON=/opt/homebrew/bin/python3.13`).
+3. Build and serve:
+   ```sh
+   EMSDK=/path/to/emsdk tools/build_wasm.sh --web     # build-web/: 11 MB .wasm + .js
+   python3 tools/serve_web.py                         # local server (localhost only)
+   ```
+4. Open http://localhost:8123/ in Chrome and choose your game folder (the one with `popTB.exe`).
+   The files are read into the tab, not uploaded anywhere. Sound starts with that click.
+
+For development, `python3 tools/serve_web.py --game /path/to/game` and http://localhost:8123/?dev
+skips the folder picker. More options: [docs/DEBUGGING.md](docs/DEBUGGING.md#browser).
+
 ## Quick start (native reference build)
-The browser build does not exist yet. The native build is what this fork uses as the reference for
-debugging and comparison. This fork publishes no downloads; for prebuilt Mac apps use
-[upstream's releases](https://github.com/iagodemacedo/OpenPopTB-MacOS/releases).
+The native macOS build is the reference for debugging and comparison.
 
 ### Build from source
 1. Get the game files from your GOG copy: the offline installer
@@ -91,8 +103,17 @@ gen/*.c  (generated locally, never committed)
         │  + runtime/*.c: 4 GB guest address space, Win32 (kernel32, user32, ...),
         │    DirectDraw, DirectInput, DirectSound 3D, waveOut, Winsock, all on SDL3/POSIX
         ▼
-Populous TB.app  (native arm64)
+Populous TB.app  (native arm64)          build-web/PopulousTB.wasm + web/  (browser)
 ```
+The browser build compiles the same generated C and runtime with Emscripten:
+- **Threads:** the game runs in Web Workers (one per guest thread, as natively).
+- **Memory:** its memory is a compact 512 MB window instead of 4 GB.
+- **Video and input:** frames go to a canvas, and keyboard and mouse events come back through a
+  shared ring buffer.
+- **Audio:** DirectSound's mixer feeds an AudioWorklet.
+
+Details: [docs/wasm/PLAN.md](docs/wasm/PLAN.md) §0.
+
 - The original `popTB.exe` and the `QMixer.dll` sound mixer are **both** recompiled; the game calls
   QMixer, QMixer calls our DirectSound, our DirectSound plays through SDL3.
 - At run time the original PE files are loaded into a 4 GB guest address space so that all the
@@ -109,8 +130,9 @@ internals so far: [docs/FINDINGS.md](docs/FINDINGS.md).
 |---|---|
 | `build.sh` | One-shot build from your game folder or GOG installer |
 | `recomp/` | The static recompiler (Python): `image.py` code discovery, `gen.py` x86→C, `fuzz.py` differential fuzzer |
-| `runtime/` | The C runtime: CPU helpers, memory, threads, Win32/DirectX reimplementation on SDL3; `prepare.c` is the prebuilt app's first-launch recompilation |
-| `tools/` | Debugging tools: run with scripted input and screenshots, crash symbolication, replay, disassembly |
+| `runtime/` | The C runtime: CPU helpers, memory, threads, Win32/DirectX reimplementation on SDL3; `prepare.c` is the prebuilt app's first-launch recompilation. Browser and headless: `plat_headless.c` (no window; canvas and input with `POPTB_WEB`), `audio_web.c` |
+| `tools/` | Debugging tools: run with scripted input and screenshots, crash symbolication, replay, disassembly. Browser: `build_wasm.sh`, `serve_web.py`, `run_wasm.sh` (Node.js) |
+| `web/` | The browser page: `index.html`, `main.js` (file loading, canvas, input, audio, saves), `audio-worklet.js` |
 | `re/` | Reverse-engineering inputs: function list exported from Ghidra (addresses only), export script |
 | `docs/` | Architecture, findings, file formats, debugging guide, upstream roadmap |
 | `docs/wasm/` | WebAssembly port: plan, discovery notes |

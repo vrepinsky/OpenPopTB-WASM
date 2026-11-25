@@ -1,7 +1,9 @@
-# WASM port — discovery notes (paused 2026-11-18)
+# WASM port — discovery notes (2026-11-18)
 
-Status: technical discovery in progress. Planning doc NOT yet written to Notion (connector returned
-404 for the page; it is likely in a workspace the Notion integration can't see).
+> Historical: the raw log of the initial discovery. It is kept for reference and not updated.
+> Current status and decisions: [PLAN.md](PLAN.md) §0. Some early estimates here were revised later:
+> the guest window is 512 MB, not 1 GB; the stack-overflow risk turned out low; the browser uses its
+> own platform layer instead of SDL3 video.
 
 ## What was done
 1. Read the upstream code (this repo is already a fork of iagodemacedo/OpenPopTB-MacOS, MIT):

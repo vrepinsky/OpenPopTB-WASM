@@ -13,9 +13,27 @@ Raw discovery log: [DISCOVERY-NOTES.md](DISCOVERY-NOTES.md).
 
 ---
 
-## 0. Current status (2026-11-19)
+## 0. Current status (updated 2026-11-25)
 
-**M1 reached: the game runs in WebAssembly under Node.js.** The intro videos play, the main menu
+**The game is playable in Chrome:** original software renderer on a canvas, keyboard and mouse,
+sound, and saves that persist. Tested: intro, menus, tutorial, Rolling Demo, a manual play test.
+Not yet tested: longer campaign play.
+
+| Milestone | Status |
+|---|---|
+| M0 native reference | done |
+| M1 headless Wasm in Node | done (except the pixel diff: needs B-22) |
+| M2 first browser output | done |
+| M3 first playable level in the browser | mostly done: input works; completing a level not yet verified |
+| M4 functional single-player | in progress: sound, FMV audio and persistent saves done; campaign progression untested; no CI |
+| M5 minimal web app | partial: folder picker, fullscreen; no loading/error polish, game files reloaded each visit |
+
+Next candidates: keep the game files in OPFS (choose the folder once), a longer campaign play test,
+save export/import, B-22 (virtual clock for exact native-vs-browser comparison), Undiscovered Worlds.
+
+Progress log, oldest first:
+
+**2026-11-19: M1 reached, the game runs in WebAssembly under Node.js.** The intro videos play, the main menu
 renders, and the Rolling Demo runs in game with the original 3D software renderer. The heap high-water
 mark is identical to native (93.2 MB), it keeps up with the game's frame cap, and it exits cleanly.
 
@@ -538,7 +556,9 @@ Local data layout (outside version control):
 
 ## 9. Milestones and acceptance criteria
 
-**M0: Native reference build.** Mostly done.
+Status of each milestone: §0.
+
+**M0: Native reference build.**
 Acceptance:
 - The native app builds from our installer.
 - The first campaign level is playable.

@@ -98,7 +98,7 @@ scaling, letterboxed). FMVs switch the display to 640x480x16 (RGB565).
 ## 3. Two ways to build: from source and the prebuilt app
 > In this fork only the from-source build is used. The prebuilt-app packaging (`tools/package_release.sh`,
 > CI, signing) was removed; `runtime/prepare.c` and the `POPTB_PREBUILT` option remain in the code.
-> For the planned WebAssembly build see [wasm/PLAN.md](wasm/PLAN.md).
+> The WebAssembly build is a third way: see section 5.
 
 - **From source** (`build.sh`): `gen.py` writes `gen*/*.c` and CMake links them into the app together
   with the runtime. `main.c` points `fn_table`/`import_table` at the generated `gen_fn_table`/
@@ -135,3 +135,24 @@ scaling, letterboxed). FMVs switch the display to 640x480x16 (RGB565).
   `POPTB_SNAP_FUNC`), re-run it in Unicorn and diff; with `--cmp`, compare per-instruction register
   traces and stop at the first divergence. This found both video-decoder bugs (6.3M instructions
   now match exactly).
+
+## 5. WebAssembly build (this fork)
+The same generated C and the same runtime, compiled with Emscripten (`tools/build_wasm.sh`).
+What differs from the native build, all behind `__EMSCRIPTEN__` / `POPTB_WEB` / CMake options:
+- **Memory** (`POPTB_GUEST_WINDOW`, `runtime/rt.h`, `mem.c`): all guest memory in the first 512 MB
+  (heap below 0x10000000, VirtualAlloc 0x19000000–0x20000000), so it fits in wasm32 linear memory.
+  Natively the option leaves the rest of the 4 GB inaccessible, as a bounds check.
+- **Threads:** pthreads become Web Workers (`PROXY_TO_PTHREAD`: `main()` runs in a worker too), and
+  the GIL works unchanged. Native C stacks are 2 MB instead of 64 MB.
+- **Platform** (`runtime/plat_headless.c` instead of `plat.c`): no window.
+  - Node.js: scripted input and BMP screenshots.
+  - Browser (`POPTB_WEB`): each frame is handed to the page (`web/main.js`) and drawn on a canvas;
+    keyboard and mouse arrive through a ring buffer in shared memory.
+  - Absolute mouse input reads the game's own cursor variable (FINDINGS.md) so it cannot drift.
+- **Audio** (`runtime/audio_web.c`): a thread runs DirectSound's mixer (`dsound_mix`) into a ring
+  buffer that an AudioWorklet (`web/audio-worklet.js`) plays at 44.1 kHz.
+- **Files:** Node reads the game folder directly (NODERAWFS). The browser copies the chosen folder
+  into the in-memory file system, and keeps `SAVE` in IndexedDB (IDBFS).
+- **Exit:** `rt_exit` shuts SDL down and forces the exit from any thread.
+
+Plan, measurements and status: [wasm/PLAN.md](wasm/PLAN.md).
