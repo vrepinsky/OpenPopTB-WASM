@@ -63,7 +63,10 @@ function(poptb_target name gendir exe outname bundle)
   if(EMSCRIPTEN)
     target_link_options(${name} PRIVATE -pthread ${POPTB_SDL3}
         -sPROXY_TO_PTHREAD -sPTHREAD_POOL_SIZE=16 -sEXIT_RUNTIME
-        -sSTACK_SIZE=1MB -sDEFAULT_PTHREAD_STACK_SIZE=2MB)
+        -sSTACK_SIZE=1MB -sDEFAULT_PTHREAD_STACK_SIZE=2MB
+        # PopulousTB.js.symbols: function index -> name (f_<x86 address>), to read crash stacks of
+        # builds without debug info; not loaded by the page
+        --emit-symbol-map)
     if(POPTB_WEB)
       # fixed memory: no growth, so the page's views of the shared heap never go stale. Game files
       # are written into the in-memory file system by web/main.js before main() is called

@@ -116,6 +116,17 @@ sound.
 - **Storage is per origin** (e.g. `http://localhost:8123`), and clearing the site's data deletes it.
 - **Tested in headless Chrome:** the first run seeds 8 files, the second restores them.
 
+**Release build (2026-11-25):** `tools/build_wasm.sh --web` now builds Release by default.
+- **Size:** an 11.0 MB `.wasm` instead of 89.5 MB with debug info (2.2 MB with gzip -9), and a
+  222 KB `.js`. Link time is about 17 s.
+- **Crash stacks:** `--emit-symbol-map` writes `PopulousTB.js.symbols`, which maps function indices
+  to `f_<x86 address>` names.
+- **Verified** in headless Chrome: intro, menu, Rolling Demo, 0 audio underruns.
+- **Startup:** locally the startup gain is small, because loading the game files dominates. The size
+  matters for serving over a network.
+- **Generated code** stays at `-O1` as upstream does; whether `-O2` is faster in the browser is
+  untested.
+
 Still loaded on every visit: the ~385 MB of game files (picker or dev server). Next options: keep them
 in OPFS so the folder is chosen once; save export/import; a smaller release build. B-22 (virtual clock) when exact screenshot
 comparison is needed.

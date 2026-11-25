@@ -22,6 +22,8 @@ versions follow [Semantic Versioning](https://semver.org/).
   (browser and input scripts) moves from the game's real cursor position, so it no longer drifts.
 - Sound in the browser: sound effects, music and FMV audio through an AudioWorklet. It starts with
   the folder choice (or the first click or key press with `?dev`).
+- `tools/build_wasm.sh --web` builds Release by default: 11 MB `.wasm` instead of 89 MB, plus a
+  symbol map (`PopulousTB.js.symbols`) for reading crash stacks.
 - Browser saves and settings persist across reloads (IndexedDB). On the first run they start from
   the chosen folder's SAVE files.
 - New CMake options, also usable natively: `POPTB_HEADLESS` (no window, scripted input and

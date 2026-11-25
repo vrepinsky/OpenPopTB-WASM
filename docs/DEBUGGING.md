@@ -30,7 +30,8 @@ paces itself on the wall clock. Compare game state (logs, `POPTB_STATS`), not ra
 
 ## Browser
 ```sh
-EMSDK=/path/to/emsdk tools/build_wasm.sh --web     # build-web/
+EMSDK=/path/to/emsdk tools/build_wasm.sh --web     # build-web/, Release: 11 MB .wasm without debug info
+EMSDK=/path/to/emsdk tools/build_wasm.sh --web RelWithDebInfo   # 89 MB with DWARF: C source in DevTools
 python3 tools/serve_web.py --game /path/to/game --out /tmp/web-out
 # http://localhost:8123/?dev                       loads the game folder from the server (no picker)
 # &args=-v  &script=30000:click:320,302             same flags and input scripts as native
@@ -44,6 +45,9 @@ Headless Chrome works for automated runs:
     "http://localhost:8123/?dev&log&shots=30000"
 ```
 Its `CVDisplayLinkCreateWithCGDisplay failed` errors are harmless (there is no display).
+
+In a Release build, stack traces show `wasm-function[N]`. Look N up in `build-web/PopulousTB.js.symbols`:
+the names are `f_<x86 address>` like in native backtraces.
 
 ## Resource statistics
 `POPTB_STATS=1` prints, every 10 s and at exit:
