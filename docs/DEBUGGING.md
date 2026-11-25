@@ -9,6 +9,54 @@
 - `dispatch: unknown target 0x...` means an indirect call/jump to code the recompiler did not
   discover. Find out who jumps there (`tools/dis.py`) and teach `recomp/image.py` about the pattern.
 
+## Build variants
+| CMake option | Effect |
+|---|---|
+| `-DPOPTB_HEADLESS=ON` | No window (`runtime/plat_headless.c`): input only from `--script`, frames only as `--shot*` BMPs, audio through SDL's dummy driver. Same as the WebAssembly build's platform. |
+| `-DPOPTB_GUEST_WINDOW=ON` | The WebAssembly memory layout: all guest memory in the first 512 MB. Natively the rest of the 4 GB is inaccessible, so any guest access outside the window crashes with its guest address. |
+
+## WebAssembly (Node.js)
+```sh
+EMSDK=/path/to/emsdk tools/build_wasm.sh            # build-wasm/PopulousTB.js + .wasm (emsdk needs Python >= 3.10:
+                                                    # EMSDK_PYTHON=/opt/homebrew/bin/python3.13)
+POPTB_GAME=/path/to/game tools/run_wasm.sh 160 --shot-dir /tmp/shots --shot-every 600 \
+    --script "31000:click:320,302;150000:quit"      # Rolling Demo
+```
+Same flags, scripts and `POPTB_*` variables as the native build. It is always headless with the
+512 MB guest window, and reads the game folder straight from disk.
+
+Two native runs of the same script are not pixel-identical at the same frame number: the game
+paces itself on the wall clock. Compare game state (logs, `POPTB_STATS`), not raw screenshots.
+
+## Browser
+```sh
+EMSDK=/path/to/emsdk tools/build_wasm.sh --web     # build-web/
+python3 tools/serve_web.py --game /path/to/game --out /tmp/web-out
+# http://localhost:8123/?dev                       loads the game folder from the server (no picker)
+# &args=-v  &script=30000:click:320,302             same flags and input scripts as native
+# &uiscript=30000:click:320,302;70000:key:Escape     same input syntax, sent as DOM events (tests the page's input path)
+# &log      console output appended to /tmp/web-out/log.txt
+# &shots=10000,60000                                canvas screenshots (ms after start) into /tmp/web-out
+```
+Headless Chrome works for automated runs:
+```sh
+"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new --user-data-dir=/tmp/chrome-poptb \
+    "http://localhost:8123/?dev&log&shots=30000"
+```
+Its `CVDisplayLinkCreateWithCGDisplay failed` errors are harmless (there is no display).
+
+## Resource statistics
+`POPTB_STATS=1` prints, every 10 s and at exit:
+- guest heap and VirtualAlloc high-water marks;
+- per-thread native and guest stack depth (sampled in `dispatch`);
+- GIL acquisition count.
+
+`runtime/stats.c` implements it. The numbers size the WebAssembly port's memory window and thread
+stacks (`docs/wasm/PLAN.md`).
+```sh
+POPTB_STATS=1 POPTB_GAME=/path/to/game tools/run.sh 120 --script "31000:click:320,302"   # Rolling Demo
+```
+
 ## Crashes
 The crash handler prints the native backtrace and the load address. Map it to x86 addresses:
 ```sh
@@ -52,6 +100,8 @@ machine whose CoreAudio device open hangs).
 ```sh
 python3 -m venv .venv && .venv/bin/pip install capstone pefile unicorn pillow
 VENV_PY=.venv/bin/python tools/fuzz.sh 3 12       # instruction-level fuzzer vs Unicorn
+FUZZ_WASM=1 EMSDK=/path/to/emsdk VENV_PY=.venv/bin/python tools/fuzz.sh 3 12   # + the same tests as wasm32 under
+                                                  # Node.js; reports whether the failing forms are identical
 ```
 Function replay (example: the FMV frame decoder):
 ```sh

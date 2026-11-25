@@ -4,6 +4,32 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
+### Fork: OpenPopTB-WASM
+- Forked from OpenPopTB-MacOS 0.2.1 as an attempt at a browser (WebAssembly) port. Plan:
+  `docs/wasm/PLAN.md`.
+- Removed what the fork does not need: release packaging, signing and notarization
+  (`tools/package_release.sh`, `tools/entitlements.plist`, `tools/release_notes.sh`, the GitHub
+  release workflow), app icons (`assets/`, `tools/make_icons.py`), README media, the old
+  hand-written terrain viewer (`src/`) and one-off recompiler census scripts.
+- `POPTB_STATS=1`: memory and stack statistics (`docs/DEBUGGING.md`).
+- `FUZZ_WASM=1 tools/fuzz.sh`: runs the instruction fuzzer as wasm32 under Node.js too and compares
+  the failing forms with native (identical).
+- WebAssembly build that runs headless under Node.js (`tools/build_wasm.sh`, `tools/run_wasm.sh`):
+  intro, main menu and Rolling Demo run.
+- Browser build (`tools/build_wasm.sh --web`, `web/`, `tools/serve_web.py`): the game runs in Chrome
+  and draws on a canvas, loading the player's game folder into the tab. Keyboard and mouse work
+  (Cmd+Enter: fullscreen with the mouse captured; hold Escape to leave). Absolute mouse input
+  (browser and input scripts) moves from the game's real cursor position, so it no longer drifts.
+- Sound in the browser: sound effects, music and FMV audio through an AudioWorklet. It starts with
+  the folder choice (or the first click or key press with `?dev`).
+- Browser saves and settings persist across reloads (IndexedDB). On the first run they start from
+  the chosen folder's SAVE files.
+- New CMake options, also usable natively: `POPTB_HEADLESS` (no window, scripted input and
+  screenshots) and `POPTB_GUEST_WINDOW` (512 MB guest memory, the WebAssembly layout).
+- Runtime portability: monotonic clock instead of `mach_absolute_time`, macOS-only code behind
+  `#ifdef`, smaller thread stacks on WebAssembly, clean exit from any thread (`rt_exit`).
+
+### Changed (upstream)
 ### Changed
 - GitHub release notes are the version's `CHANGELOG.md` section plus download instructions
   (`tools/release_notes.sh`); a tag without a changelog section fails the release.

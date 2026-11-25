@@ -79,6 +79,7 @@ CPU *cpu_new_thread(void) {
     t->cpu.cc_op = CCOP(CC_EFL, 4);
     thread_setup_tib(t);
     cur_thread = t;
+    stats_thread_start(t->stack_hi);
     return &t->cpu;
 }
 
@@ -90,6 +91,7 @@ static void *thread_main(void *arg) {
     gil_lock();
     CPU *R = cpu_new_thread();
     nthread(R)->handle = ts.h;
+    { char l[16]; snprintf(l, sizeof l, "%08x", ts.start); stats_thread_label(l); }
     Handle *hh = handle_get(ts.h);
     while (hh && hh->suspended) { gil_unlock(); usleep(1000); gil_lock(); }
     uint32_t rc = guest_call(R, ts.start, 1, ts.param);
@@ -108,7 +110,13 @@ SHIM(CreateThread, 6) {
     ThreadStart *ts = malloc(sizeof *ts);
     ts->start = start; ts->param = param; ts->h = h;
     pthread_attr_t at; pthread_attr_init(&at);
+    // native C stack per guest thread. Measured need is a few KB (docs/wasm/PLAN.md §3.4); on
+    // WebAssembly it lives in linear memory, so it is kept small there
+#ifdef __EMSCRIPTEN__
+    pthread_attr_setstacksize(&at, 2 << 20);
+#else
     pthread_attr_setstacksize(&at, 64 << 20);
+#endif
     pthread_create(&x->th, &at, thread_main, ts);
     pthread_attr_destroy(&at);
     if (ptid) wr32(ptid, h);
@@ -137,7 +145,13 @@ SHIM(GetCurrentThreadId, 0) { return nthread(R)->tid; }
 SHIM(GetCurrentProcess, 0) { return 0xffffffff; }
 SHIM(GetCurrentProcessId, 0) { return 0x42; }
 SHIM(TerminateProcess, 2) { fprintf(stderr, "TerminateProcess(%u)\n", ARG(1)); exit((int)ARG(1)); }
-SHIM(ExitProcess, 1) { fprintf(stderr, "ExitProcess(%u)\n", ARG(0)); fflush(stderr); _exit((int)ARG(0)); }
+SHIM(ExitProcess, 1) {
+    stats_report(); fprintf(stderr, "ExitProcess(%u)\n", ARG(0)); fflush(stderr);
+#ifdef __EMSCRIPTEN__
+    rt_exit((int)ARG(0));
+#endif
+    _exit((int)ARG(0));
+}
 
 // TLS
 SHIM(SetCommTimeouts, 2) { return 0; }
